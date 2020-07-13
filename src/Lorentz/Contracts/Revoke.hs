@@ -37,6 +37,10 @@ data Parameter cp
 
 deriving stock instance (Show cp) => Show (Parameter cp)
 deriving anyclass instance (IsoValue cp) => IsoValue (Parameter cp)
+instance HasTypeAnn cp => HasTypeAnn (Parameter cp)
+
+instance (HasTypeAnn cp, IsoValue cp) => ParameterHasEntryPoints (Parameter cp) where
+  type ParameterEntryPointsDerivation (Parameter cp) = EpdPlain
 
 -- | Add an entrypoint to revoke a permit
 revokeWrapperContract :: forall cp st. (IsoValue cp)

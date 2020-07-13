@@ -60,6 +60,9 @@ readAddressP =
       (do {('t':'z':'1':_) <- P.look; return ()}) <|>
       (do {('K':'T':'1':_) <- P.look; return ()})
 
+instance Read Address where
+  readPrec = readP_to_Prec $ const readAddressP
+
 
 instance Read PublicKey where
   readPrec = readP_to_Prec $ \_ ->
