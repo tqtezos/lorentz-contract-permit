@@ -10,15 +10,32 @@ module Lorentz.Contracts.Permit.Type where
 
 import Lorentz
 import Michelson.Text
+import Tezos.Crypto.Hash
+import Util.Named
 
 import Text.Show (Show(..))
 
-type Blake2B = ByteString
+newtype Blake2B =
+  UnsafeBlake2B ByteString
+  deriving stock Show
+  deriving stock Eq
+  deriving stock Ord
+  deriving stock Generic
+  deriving anyclass IsoValue
+
+instance HasTypeAnn Blake2B
+
+safeBlake2B :: forall s. ByteString & s :-> Blake2B & s
+safeBlake2B = blake2B >> forcedCoerce_ @ByteString @Blake2B
+
+mkBlake2B :: ByteString -> Blake2B
+mkBlake2B = UnsafeBlake2B . blake2b
+
 
 data SignedParams = SignedParams
-  { signer_key :: !PublicKey
+  { signerKey :: !PublicKey
   , signature  :: !Signature
-  , param_hash :: !Blake2B
+  , paramHash :: !Blake2B
   }
   deriving stock Show
   deriving stock Generic
@@ -29,12 +46,35 @@ instance HasTypeAnn SignedParams
 unSignedParams :: SignedParams & s :-> (PublicKey, (Signature, Blake2B)) & s
 unSignedParams = forcedCoerce_
 
-type Permits = BigMap (Blake2B, Address) ()
+data Permit = Permit
+  { paramHash :: !Blake2B
+  , signer :: !Address
+  }
+  deriving stock Eq
+  deriving stock Ord
+  deriving stock Show
+  deriving stock Generic
+  deriving anyclass IsoValue
+
+instance HasTypeAnn Permit
+
+toPermit :: (Blake2B, Address) & s :-> Permit & s
+toPermit = forcedCoerce_
+
+type Permits = BigMap Permit ()
+
+-- | Add a `Permit` to `Permits`
+addToPermits :: Permit & Permits & s :-> Permits & s
+addToPermits = do
+  dip $ do
+    unit
+    some
+  update
 
 data SentParam = SentParam
   { approvalMap :: !Permits
   , packedParam :: !ByteString
-  , permitter :: !Address
+  , signer :: !Address
   }
   deriving stock Generic
 
@@ -55,8 +95,9 @@ assertSentParam = do
   unpair
   dip $ do
     unpair
-    blake2B
+    safeBlake2B
     pair
+    toPermit
   dup
   dig @2
   dup
@@ -82,7 +123,7 @@ toCheckSentParam :: forall cp s. (Lambda SentParam Permits, cp) & s :-> CheckSen
 toCheckSentParam = forcedCoerce_
 
 data Parameter cp
-  = Permit !SignedParams
+  = PermitParam !SignedParams
   | WrappedParam !cp
   deriving stock Generic
 
@@ -95,7 +136,7 @@ instance (HasTypeAnn cp, IsoValue cp) => ParameterHasEntryPoints (Parameter cp) 
 
 data Storage st = Storage
   { presignedParams :: !Permits
-  , counter         :: !Natural
+  , counter         :: !("counter" :! Natural)
   , wrappedStorage  :: !st
   }
   deriving stock Generic
@@ -103,14 +144,14 @@ data Storage st = Storage
 deriving stock instance (Show st) => Show (Storage st)
 deriving anyclass instance (IsoValue st) => IsoValue (Storage st)
 
-unStorage :: Storage st & s :-> (Permits, (Natural, st)) & s
+unStorage :: Storage st & s :-> (Permits, ("counter" :! Natural, st)) & s
 unStorage = forcedCoerce_
 
-toStorage :: (Permits, (Natural, st)) & s :-> Storage st & s
+toStorage :: (Permits, ("counter" :! Natural, st)) & s :-> Storage st & s
 toStorage = forcedCoerce_
 
 mkStorage :: st -> Storage st
-mkStorage = Storage mempty 0
+mkStorage = Storage mempty (#counter .! 0)
 
 -- -- | Ignore `Storage`
 -- ignoreStorage :: ContractCode cp st -> ContractCode cp (Storage st)

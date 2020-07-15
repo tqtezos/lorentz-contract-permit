@@ -1,6 +1,6 @@
-parameter (or (pair %permit key
-                            (pair signature
-                                  bytes))
+parameter (or (pair %permitParam key
+                                 (pair signature
+                                       bytes))
               (nat %wrappedParam));
 storage (pair (big_map (pair bytes
                              address)
@@ -13,43 +13,42 @@ code { DUP;
        IF_LEFT { DUP;
                  CAR;
                  DIP { CDR };
-                 DUP;
                  DIP { DIP { DUP;
-                             CAR;
-                             DIP { CDR;
-                                   DUP;
-                                   DIG 2;
-                                   DUP;
-                                   CAR;
-                                   DIP { CDR };
-                                   SWAP;
-                                   DUP;
-                                   CAR;
-                                   DIP { CDR };
-                                   DUP;
-                                   DUG 5;
-                                   DIP { DIG 3 };
-                                   PAIR;
-                                   SELF;
-                                   ADDRESS;
-                                   CHAIN_ID;
-                                   PAIR;
-                                   PAIR;
-                                   PACK } };
+                             CDR;
+                             CAR };
+                       DUP;
+                       CAR;
+                       DIP { CDR;
+                             DUP;
+                             DIG 2;
+                             PAIR;
+                             SELF;
+                             ADDRESS;
+                             CHAIN_ID;
+                             PAIR;
+                             PAIR;
+                             PACK } };
+                 DUP;
+                 DIP { DIP { DIP { DUP } };
                        CHECK_SIGNATURE;
-                       IF {  }
+                       IF { DROP }
                           { PUSH string "missigned";
+                            PAIR;
                             FAILWITH } };
                  HASH_KEY;
                  IMPLICIT_ACCOUNT;
                  ADDRESS;
-                 DIG 3;
+                 SWAP;
                  PAIR;
-                 DIP { SWAP;
-                       UNIT;
+                 DIP { DUP;
+                       CAR;
+                       DIP { CDR } };
+                 DIP { UNIT;
                        SOME };
                  UPDATE;
-                 DIP { SWAP;
+                 DIP { DUP;
+                       CAR;
+                       DIP { CDR };
                        PUSH nat 1;
                        ADD;
                        PAIR };
