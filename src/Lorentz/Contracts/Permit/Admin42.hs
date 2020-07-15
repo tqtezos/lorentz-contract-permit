@@ -26,6 +26,7 @@ import Tezos.Crypto (checkSignature)
 import Util.IO
 import Util.Named
 
+import Lorentz.Contracts.Admin42
 import qualified Lorentz.Contracts.Permit as Permit
 import qualified Lorentz.Contracts.Permit.Type as Permit
 -- import qualified Lorentz.Contracts.Revoke as Revoke
@@ -71,6 +72,12 @@ permitAdmin42Contract ::
 permitAdmin42Contract =
   Permit.permitWrapperContract
   permittableAdmin42Contract
+
+printAdmin42 :: Maybe FilePath -> Bool -> IO ()
+printAdmin42 mOutput forceOneLine' =
+    maybe TL.putStrLn writeFileUtf8 mOutput $
+    printLorentzContract forceOneLine' $
+      (defaultContract admin42Contract) { cDisableInitialCast = True }
 
 -- | Print `permitAdmin42Contract`
 --
