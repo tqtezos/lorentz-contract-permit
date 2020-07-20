@@ -23,19 +23,16 @@ import Lorentz.Contracts.Permit.Type
 -- operation, this adds functionality so that a user can pre-approve parameters,
 -- allowing others to submit those parameters on their behalf
 permitWrapperContract :: forall cp st. (HasTypeAnn cp, NiceParameterFull cp)
-  => ContractCode (CheckSentParam cp) (Storage st)
+  => ContractCode cp (Storage st)
   -> ContractCode (Parameter cp) (Storage st)
 permitWrapperContract targetContract = do
   unpair
   caseT @(Parameter cp)
-    ( #cPermitParam /-> do
+    ( #cPermit /-> do
         permitParam @cp @st
         nil
         pair
-    , #cWrappedParam /-> do
-        lambda assertSentParam
-        pair
-        toCheckSentParam
+    , #cWrapped /-> do
         pair
         targetContract
     )

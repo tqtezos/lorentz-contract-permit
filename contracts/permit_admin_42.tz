@@ -1,7 +1,7 @@
-parameter (or (pair %permitParam key
-                                 (pair signature
-                                       bytes))
-              (nat %wrappedParam));
+parameter (or (pair %permit key
+                            (pair signature
+                                  bytes))
+              (nat %wrapped));
 storage (pair (big_map (pair bytes
                              address)
                        unit)
@@ -55,47 +55,34 @@ code { DUP;
                  PAIR;
                  NIL operation;
                  PAIR }
-               { LAMBDA
-                   (pair (big_map (pair bytes address) unit) (pair bytes address))
-                   (big_map (pair bytes address) unit)
-                   { DUP;
-                     CAR;
-                     DIP { CDR };
-                     DIP { DUP;
-                           CAR;
-                           DIP { CDR };
-                           BLAKE2B;
-                           PAIR };
-                     DUP;
-                     DIG 2;
-                     DUP;
-                     DIP { MEM;
-                           IF {  }
-                              { PUSH string "no permit";
-                                FAILWITH };
-                           NONE unit };
-                     UPDATE };
+               { DUP;
+                 PUSH nat 42;
+                 COMPARE;
+                 EQ;
+                 IF {  }
+                    { PUSH string "not 42";
+                      FAILWITH };
+                 PACK;
                  DIP { DUP;
-                       PUSH nat 42;
-                       COMPARE;
-                       EQ;
-                       IF {  }
-                          { PUSH string "not 42";
-                            FAILWITH };
-                       PACK;
-                       DIP { DUP;
+                       CAR;
+                       DIP { CDR;
+                             DUP;
                              CAR;
-                             DIP { CDR;
-                                   DUP;
-                                   CAR;
-                                   DIP { CDR };
-                                   SWAP;
-                                   DUP } };
-                       SWAP;
-                       DIP { PAIR };
-                       PAIR };
+                             DIP { CDR };
+                             SWAP;
+                             DUP } };
                  SWAP;
-                 EXEC;
+                 DIP { BLAKE2B;
+                       PAIR };
+                 DUP;
+                 DIG 2;
+                 DUP;
+                 DIP { MEM;
+                       IF {  }
+                          { PUSH string "no permit";
+                            FAILWITH };
+                       NONE unit };
+                 UPDATE;
                  DIP { SWAP;
                        PAIR };
                  PAIR;

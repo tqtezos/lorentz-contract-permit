@@ -17,12 +17,12 @@ import Control.Monad.Fail
 import System.IO
 import Text.Show
 
-import Lorentz hiding (checkSignature)
+import Lorentz -- hiding (checkSignature)
 import Michelson.Interpret
 import Michelson.Test.Dummy
 import Michelson.Text
-import Tezos.Address
-import Tezos.Crypto (checkSignature)
+-- import Tezos.Address
+-- import Tezos.Crypto (checkSignature)
 import Util.IO
 import Util.Named
 
@@ -36,29 +36,22 @@ import qualified Data.ByteString.Base16 as Base16
 
 
 permittableAdmin42Contract ::
-     ContractCode (Permit.CheckSentParam Natural) (Permit.Storage Address)
+     ContractCode Natural (Permit.Storage Address)
 permittableAdmin42Contract = do
   unpair
-  Permit.unCheckSentParam
-  unpair
+  dup
+  push @Natural 42
+  assertEq $ mkMTextUnsafe "not 42"
+  pack
   dip $ do
-    dup
-    push @Natural 42
-    assertEq $ mkMTextUnsafe "not 42"
-    pack
+    Permit.unStorage
+    unpair
     dip $ do
-      Permit.unStorage
       unpair
-      dip $ do
-        unpair
-        swap
-        dup
-    swap
-    dip $ pair
-    pair
-    Permit.toSentParam
+      swap
+      dup
   swap
-  exec
+  Permit.assertSentParam
   dip $ do
     swap
     pair
@@ -88,7 +81,8 @@ printPermitAdmin42 :: Maybe FilePath -> Bool -> IO ()
 printPermitAdmin42 mOutput forceOneLine' =
     maybe TL.putStrLn writeFileUtf8 mOutput $
     printLorentzContract forceOneLine' $
-      (defaultContract permitAdmin42Contract) { cDisableInitialCast = True }
+      (defaultContract permitAdmin42Contract)
+        { cDisableInitialCast = True }
 
 -- Tezos.Crypto.Orphans> A.printInitPermitAdmin42 (read "tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm")
 -- Pair { } (Pair 0 "tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm")
@@ -115,8 +109,8 @@ printPermitAdmin42Bytes chainId' contractAddr' counter' =
     hash' :: Permit.Blake2B
     hash' = Permit.mkBlake2B bytes'
 
-printPermitAdmin42Param :: ChainId -> Address -> Natural -> PublicKey -> Signature -> IO ()
-printPermitAdmin42Param chainId' contractAddr' counter' key' sig'
+printPermitAdmin42Param :: PublicKey -> Signature -> IO () -- ChainId -> Address -> Natural ->
+printPermitAdmin42Param key' sig' -- _chainId' _contractAddr' _counter'
   | True = -- checkSignature key' sig' hashBytes'
       let signedParams' = Permit.SignedParams key' sig' hash' in
       -- runPermitAdmin42 chainId' contractAddr' (mkKeyAddress key') signedParams' *>
@@ -133,12 +127,12 @@ printPermitAdmin42Param chainId' contractAddr' counter' key' sig'
     hash' :: Permit.Blake2B
     hash' = Permit.mkBlake2B bytes'
 
-    hashBytes' =
-      Permit.runPackWithChainId @(Permit.Parameter Natural)
-      chainId'
-      contractAddr'
-      (#counter .! counter')
-      hash'
+    -- hashBytes' =
+    --   Permit.runPackWithChainId @(Permit.Parameter Natural)
+    --   chainId'
+    --   contractAddr'
+    --   (#counter .! counter')
+    --   hash'
 
 -- | Interpret Michelson code and generate corresponding bytestring.
 runPermitAdmin42 :: ChainId -> Address -> Address -> Permit.SignedParams -> IO ()
@@ -154,7 +148,7 @@ runPermitAdmin42 chainId' selfAddress' adminAddress' xs = either
     $ interpretLorentzInstr
       env
       permitAdmin42Contract
-      (Identity (Permit.PermitParam xs, Permit.mkStorage adminAddress') :& RNil)
+      (Identity (Permit.Permit xs, Permit.mkStorage adminAddress') :& RNil)
   where
     env = dummyContractEnv { ceSelf = selfAddress', ceChainId = chainId' }
 
