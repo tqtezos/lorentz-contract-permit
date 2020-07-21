@@ -1,7 +1,7 @@
 
 See the FA1.2 [Quick Start Tutorial](https://assets.tqtezos.com/token-contracts/1-fa12-lorentz) for more detail.
 
-You can find the following example on carthagenet [here](https://better-call.dev/carthagenet/KT1MSBZ2BDUL3vMgFhouRWJrbbgxZAG4XQFD/operations).
+You can find the following example on carthagenet [here](https://better-call.dev/carthagenet/KT1LWCJk8NDgMjAJ8TXR6XrKjjMmc31nLHNR/operations).
 
 ## Setting Up
 ### Requirements
