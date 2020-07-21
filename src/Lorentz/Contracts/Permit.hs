@@ -23,32 +23,23 @@ import Lorentz.Contracts.Permit.Type
 -- operation, this adds functionality so that a user can pre-approve parameters,
 -- allowing others to submit those parameters on their behalf
 permitWrapperContract :: forall cp st. (HasTypeAnn cp, NiceParameterFull cp)
-  => ContractCode cp (Storage st)
+  => cp & (Parameter cp, Storage st) & '[] :-> ([Operation], Storage st) & '[]
   -> ContractCode (Parameter cp) (Storage st)
 permitWrapperContract targetContract = do
-  unpair
+  dup
+  car
   caseT @(Parameter cp)
     ( #cPermit /-> do
-        permitParam @cp @st
+        permitParam @cp @_ @st
         nil
         pair
-    , #cWrapped /-> do
-        pair
-        targetContract
+    , #cWrapped /-> targetContract
     )
-
-getCounter :: Storage st & s :-> ("counter" :! Natural) & Storage st & s
-getCounter = do
-  dup
-  unStorage
-  cdr
-  car
 
 assertSignature :: PublicKey & Signature & ByteString & s :-> s
 assertSignature = do
-  dip $ dip dup --
+  dip $ dip dup
   checkSignature
-  -- assert $ mkMTextUnsafe "missigned"
   if Holds
      then drop
      else do
@@ -56,61 +47,69 @@ assertSignature = do
        pair
        failWith
 
-checkPermit :: forall cp st s. (HasTypeAnn cp, NiceParameterFull cp) =>
-  SignedParams & Storage st & s :-> Permit & Storage st & s
+checkPermit :: forall cp t st s. (HasTypeAnn cp, NiceParameterFull cp) =>
+  SignedParams & (t, Storage st) & s :-> Permit & Storage st & s
 checkPermit = do
   unSignedParams
-  unpair
-  dip $ do
-    dip getCounter
-    unpair
-    dip $ do
-      dup
-      dig @2
-      packWithChainId @(Parameter cp)
+  dup
+  car
   dup
   dip $ do
-    assertSignature
-  publicKeyToAddress
+    swap
+    cdr
+    dup
+    car
+    dip $ do
+      cdr
+      dup
+      dip $ do
+        dip publicKeyToAddress
+        pair
+        swap
+      swap
+      cdr
+      dup
+      unStorage
+      cdr
+      car
+      dip $ do
+        swap
+      packWithChainId @(Parameter cp)
+  assertSignature
   swap
-  pair
   toPermit
 
-incrementCounter :: ("counter" :! Natural) & s :-> ("counter" :! Natural) & s
+incrementCounter :: ("counter" :! Natural, st) & s :-> ("counter" :! Natural, st) & s
 incrementCounter = do
+  dup
+  car
   forcedCoerce_ @("counter" :! Natural) @Natural
   push @Natural 1
   add
   forcedCoerce_ @Natural @("counter" :! Natural)
+  dip cdr
+  pair
 
 addPermit :: Permit & Storage st & s :-> Storage st & s
 addPermit = do
   dip $ do
     unStorage
-    unpair
-  addToPermits
-  dip $ do
-    unpair
+    dup
+    cdr
     incrementCounter
-    pair
+    swap
+    car
+    unit
+    some
+  update
   pair
   toStorage
 
-permitParam :: forall cp st s. (HasTypeAnn cp, NiceParameterFull cp)
-  => SignedParams & Storage st & s :-> Storage st & s
+permitParam :: forall cp t st s. (HasTypeAnn cp, NiceParameterFull cp)
+  => SignedParams & (t, Storage st) & s :-> Storage st & s
 permitParam = do
   checkPermit @cp
   addPermit
-
--- -- | Pack the bytes of the chain id with the current contract address
--- hashWithChainId
---     :: forall p s. NiceParameterFull p
---     => ("counter" :! Natural) & ByteString & s :-> ByteString & s
--- hashWithChainId = do
---   dip safeBlake2B
---   pair
---   stackType @(("counter" :! Natural, Blake2B) & s)
---   packWithChainId @p
 
 packWithChainId
     :: forall p s. NiceParameterFull p

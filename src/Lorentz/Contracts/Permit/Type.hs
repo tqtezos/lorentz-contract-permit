@@ -72,20 +72,24 @@ addToPermits = do
   update
 
 -- | Assert the parameter exists and deletes it from `Permits`
-assertSentParam :: forall s. Permits & ByteString & Address & s :-> Permits & s
+assertSentParam :: forall s. Permits & Permit & s :-> Permits & s
 assertSentParam = do
-  dip $ do
-    safeBlake2B
-    pair
-    toPermit
+  swap
+  pair
   dup
-  dig @2
-  dup
-  dip $ do
-    mem
-    assert $ mkMTextUnsafe "no permit"
-    none
-  update
+  unpair
+  mem @Permits
+  if Holds
+     then do
+       dup
+       car
+       dip $ do
+         cdr
+         none
+       update
+     else do
+       push $ mkMTextUnsafe "no permit"
+       failWith
 
 data Parameter cp
   = Permit !SignedParams
@@ -116,4 +120,16 @@ toStorage = forcedCoerce_
 
 mkStorage :: st -> Storage st
 mkStorage = Storage mempty (#counter .! 0)
+
+-- | `Storage` we can parse from the Tezos RPC
+data DummyStorage st = DummyStorage
+  { dummyPresignedParams :: !Natural
+  , counter              :: !("counter" :! Natural)
+  , wrappedStorage       :: !st
+  }
+  deriving stock Generic
+
+deriving stock instance (Show st) => Show (DummyStorage st)
+deriving anyclass instance (IsoValue st) => IsoValue (DummyStorage st)
+
 

@@ -44,48 +44,54 @@ $ tezos-client --wait none originate contract PermitAdmin42 \
   transferring 0 from $BOB_ADDRESS running \
   "$(cat contracts/permit_admin_42.tz | tr -d '\n')" \
   --init 'Pair { } (Pair 0 "tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm")' \
-  --burn-cap 0.909
+  --burn-cap 0.781
 
 Waiting for the node to be bootstrapped before injection...
-Current head: BMMeeGpuCgAa (timestamp: 2020-07-20T19:45:56-00:00, validation: 2020-07-20T19:46:15-00:00)
+Current head: BMCTSg2nXiga (timestamp: 2020-07-20T22:05:16-00:00, validation: 2020-07-20T22:05:35-00:00)
 Node is bootstrapped, ready for injecting operations.
-Estimated gas: 24164 units (will add 100 for safety)
-Estimated storage: 818 bytes added (will add 20 for safety)
+Estimated gas: 23500 units (will add 100 for safety)
+Estimated storage: 781 bytes added (will add 20 for safety)
 Operation successfully injected in the node.
-Operation hash is 'ooxZr3hhxaFdwtoF29uVzCe1JNyySr1dBizYrnZJt1J7sTPDDBq'
+Operation hash is 'ooZt41yBBVWeLALpGZgjVed1FwNYTnKaMcLQxRbAWnBUt23bZAC'
 NOT waiting for the operation to be included.
 Use command
-  tezos-client wait for ooxZr3hhxaFdwtoF29uVzCe1JNyySr1dBizYrnZJt1J7sTPDDBq to be included --confirmations 30 --branch BMMeeGpuCgAaW7nAfr7wAvLzdjPZWJejbF2TUvWA3Kw4yJiLd7x
+  tezos-client wait for ooZt41yBBVWeLALpGZgjVed1FwNYTnKaMcLQxRbAWnBUt23bZAC to be included --confirmations 30 --branch BMCTSg2nXigao2Tcy6UXeMGctXTATjUHuhf49kRBek916y8vmrm
 and/or an external block explorer to make sure that it has been included.
 This sequence of operations was run:
   Manager signed operations:
     From: tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm
-    Fee to the baker: ꜩ0.0032
-    Expected counter: 623997
-    Gas limit: 24264
-    Storage limit: 838 bytes
+    Fee to the baker: ꜩ0.003096
+    Expected counter: 624000
+    Gas limit: 23600
+    Storage limit: 801 bytes
     Balance updates:
-      tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm ............. -ꜩ0.0032
-      fees(tz1Ke2h7sDdakHJQh8WX4Z372du1KChsksyU,284) ... +ꜩ0.0032
+      tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm ............. -ꜩ0.003096
+      fees(tz1Ke2h7sDdakHJQh8WX4Z372du1KChsksyU,284) ... +ꜩ0.003096
     Origination:
       From: tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm
       Credit: ꜩ0
       Script:
-        { parameter (or (pair %permitParam key (pair signature bytes)) (nat %wrappedParam)) ;
+        { parameter (or (pair %permit key (pair signature bytes)) (nat %wrapped)) ;
           storage (pair (big_map (pair bytes address) unit) (pair nat address)) ;
           code { DUP ;
                  CAR ;
-                 DIP { CDR } ;
                  IF_LEFT
                    { DUP ;
                      CAR ;
-                     DIP { CDR } ;
-                     DIP { DIP { DUP ; CDR ; CAR } ;
+                     DUP ;
+                     DIP { SWAP ;
+                           CDR ;
                            DUP ;
                            CAR ;
                            DIP { CDR ;
                                  DUP ;
-                                 DIG 2 ;
+                                 DIP { DIP { HASH_KEY ; IMPLICIT_ACCOUNT ; ADDRESS } ; PAIR ; SWAP } ;
+                                 SWAP ;
+                                 CDR ;
+                                 DUP ;
+                                 CDR ;
+                                 CAR ;
+                                 DIP { SWAP } ;
                                  PAIR ;
                                  SELF ;
                                  ADDRESS ;
@@ -93,19 +99,23 @@ This sequence of operations was run:
                                  PAIR ;
                                  PAIR ;
                                  PACK } } ;
-                     DUP ;
-                     DIP { DIP { DIP { DUP } } ;
-                           CHECK_SIGNATURE ;
-                           IF { DROP } { PUSH string "missigned" ; PAIR ; FAILWITH } } ;
-                     HASH_KEY ;
-                     IMPLICIT_ACCOUNT ;
-                     ADDRESS ;
+                     DIP { DIP { DUP } } ;
+                     CHECK_SIGNATURE ;
+                     IF { DROP } { PUSH string "missigned" ; PAIR ; FAILWITH } ;
                      SWAP ;
-                     PAIR ;
-                     DIP { DUP ; CAR ; DIP { CDR } } ;
-                     DIP { UNIT ; SOME } ;
+                     DIP { DUP ;
+                           CDR ;
+                           DUP ;
+                           CAR ;
+                           PUSH nat 1 ;
+                           ADD ;
+                           DIP { CDR } ;
+                           PAIR ;
+                           SWAP ;
+                           CAR ;
+                           UNIT ;
+                           SOME } ;
                      UPDATE ;
-                     DIP { DUP ; CAR ; DIP { CDR } ; PUSH nat 1 ; ADD ; PAIR } ;
                      PAIR ;
                      NIL operation ;
                      PAIR }
@@ -115,15 +125,19 @@ This sequence of operations was run:
                      EQ ;
                      IF {} { PUSH string "not 42" ; FAILWITH } ;
                      PACK ;
-                     DIP { DUP ; CAR ; DIP { CDR ; DUP ; CAR ; DIP { CDR } ; SWAP ; DUP } } ;
+                     BLAKE2B ;
+                     DIP { CDR ; DUP ; CAR ; DIP { CDR ; DUP ; CDR } } ;
                      SWAP ;
-                     DIP { BLAKE2B ; PAIR } ;
+                     DIP { PAIR } ;
+                     SWAP ;
+                     PAIR ;
                      DUP ;
-                     DIG 2 ;
                      DUP ;
-                     DIP { MEM ; IF {} { PUSH string "no permit" ; FAILWITH } ; NONE unit } ;
-                     UPDATE ;
-                     DIP { SWAP ; PAIR } ;
+                     CAR ;
+                     DIP { CDR } ;
+                     MEM ;
+                     IF { DUP ; CAR ; DIP { CDR ; NONE unit } ; UPDATE }
+                        { PUSH string "no permit" ; FAILWITH } ;
                      PAIR ;
                      NIL operation ;
                      PAIR } } }
@@ -132,24 +146,24 @@ This sequence of operations was run:
         No delegate for this contract
         This origination was successfully applied
         Originated contracts:
-          KT19uax1n4xA3Rs8aJ3Qkzp99C4BjJz2g7G6
-        Storage size: 561 bytes
+          KT1LWCJk8NDgMjAJ8TXR6XrKjjMmc31nLHNR
+        Storage size: 524 bytes
         Updated big_maps:
-          New map(10500) of type (big_map (pair bytes address) unit)
-        Paid storage size diff: 561 bytes
-        Consumed gas: 24164
+          New map(10509) of type (big_map (pair bytes address) unit)
+        Paid storage size diff: 524 bytes
+        Consumed gas: 23500
         Balance updates:
-          tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm ... -ꜩ0.561
+          tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm ... -ꜩ0.524
           tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm ... -ꜩ0.257
 
-New contract KT19uax1n4xA3Rs8aJ3Qkzp99C4BjJz2g7G6 originated.
+New contract KT1LWCJk8NDgMjAJ8TXR6XrKjjMmc31nLHNR originated.
 Contract memorized as PermitAdmin42.
 ```
 
 Make a bash variable for the contract:
 
 ```bash
-PERMIT_ADMIN_42="KT19uax1n4xA3Rs8aJ3Qkzp99C4BjJz2g7G6"
+PERMIT_ADMIN_42="KT1LWCJk8NDgMjAJ8TXR6XrKjjMmc31nLHNR"
 ```
 
 Get the Chain ID:
@@ -191,97 +205,112 @@ Use a `dry-run` to find the expected bytes for the parameter:
 
 ```bash
 $ tezos-client --wait none transfer 0 from $FRED_ADDRESS to $PERMIT_ADMIN_42 \
-  --entrypoint permitParam --arg $PERMIT_PARAM --dry-run
+  --entrypoint permit --arg $PERMIT_PARAM --dry-run
 
 Waiting for the node to be bootstrapped before injection...
-Current head: BLQUN7V8bbL1 (timestamp: 2020-07-20T19:49:50-00:00, validation: 2020-07-20T19:50:31-00:00)
+Current head: BL8oRMHVPFof (timestamp: 2020-07-20T22:06:16-00:00, validation: 2020-07-20T22:06:32-00:00)
 Node is bootstrapped, ready for injecting operations.
 This simulation failed:
   Manager signed operations:
     From: tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir
     Fee to the baker: ꜩ0
-    Expected counter: 623967
+    Expected counter: 623971
     Gas limit: 1040000
     Storage limit: 60000 bytes
     Transaction:
       Amount: ꜩ0
       From: tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir
-      To: KT19uax1n4xA3Rs8aJ3Qkzp99C4BjJz2g7G6
-      Entrypoint: permitParam
+      To: KT1LWCJk8NDgMjAJ8TXR6XrKjjMmc31nLHNR
+      Entrypoint: permit
       Parameter: (Pair "edpkuPTVBFtbYd6gZWryXypSYYq6g7FvyucwphoU78T1vmGkbhj6qb"
                        (Pair "edsigtfkWys7vyeQy1PnHcBuac1dgj2aJ8Jv3fvoDE5XRtxTMRgJBwVgMTzvhAzBQyjH48ux9KE8jRZBSk4Rv2bfphsfpKP3ggM"
                              0x0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c))
       This operation FAILED.
 
-Runtime error in contract KT19uax1n4xA3Rs8aJ3Qkzp99C4BjJz2g7G6:
-  01: { parameter (or (pair %permitParam key (pair signature bytes)) (nat %wrappedParam)) ;
+Runtime error in contract KT1LWCJk8NDgMjAJ8TXR6XrKjjMmc31nLHNR:
+  01: { parameter (or (pair %permit key (pair signature bytes)) (nat %wrapped)) ;
   02:   storage (pair (big_map (pair bytes address) unit) (pair nat address)) ;
   03:   code { DUP ;
   04:          CAR ;
-  05:          DIP { CDR } ;
-  06:          IF_LEFT
-  07:            { DUP ;
-  08:              CAR ;
-  09:              DIP { CDR } ;
-  10:              DIP { DIP { DUP ; CDR ; CAR } ;
+  05:          IF_LEFT
+  06:            { DUP ;
+  07:              CAR ;
+  08:              DUP ;
+  09:              DIP { SWAP ;
+  10:                    CDR ;
   11:                    DUP ;
   12:                    CAR ;
   13:                    DIP { CDR ;
   14:                          DUP ;
-  15:                          DIG 2 ;
-  16:                          PAIR ;
-  17:                          SELF ;
-  18:                          ADDRESS ;
-  19:                          CHAIN_ID ;
-  20:                          PAIR ;
-  21:                          PAIR ;
-  22:                          PACK } } ;
-  23:              DUP ;
-  24:              DIP { DIP { DIP { DUP } } ;
-  25:                    CHECK_SIGNATURE ;
-  26:                    IF { DROP } { PUSH string "missigned" ; PAIR ; FAILWITH } } ;
-  27:              HASH_KEY ;
-  28:              IMPLICIT_ACCOUNT ;
-  29:              ADDRESS ;
-  30:              SWAP ;
-  31:              PAIR ;
-  32:              DIP { DUP ; CAR ; DIP { CDR } } ;
-  33:              DIP { UNIT ; SOME } ;
-  34:              UPDATE ;
-  35:              DIP { DUP ; CAR ; DIP { CDR } ; PUSH nat 1 ; ADD ; PAIR } ;
-  36:              PAIR ;
-  37:              NIL operation ;
-  38:              PAIR }
-  39:            { DUP ;
-  40:              PUSH nat 42 ;
-  41:              COMPARE ;
-  42:              EQ ;
-  43:              IF {} { PUSH string "not 42" ; FAILWITH } ;
-  44:              PACK ;
-  45:              DIP { DUP ; CAR ; DIP { CDR ; DUP ; CAR ; DIP { CDR } ; SWAP ; DUP } } ;
-  46:              SWAP ;
-  47:              DIP { BLAKE2B ; PAIR } ;
-  48:              DUP ;
-  49:              DIG 2 ;
-  50:              DUP ;
-  51:              DIP { MEM ; IF {} { PUSH string "no permit" ; FAILWITH } ; NONE unit } ;
-  52:              UPDATE ;
-  53:              DIP { SWAP ; PAIR } ;
-  54:              PAIR ;
-  55:              NIL operation ;
-  56:              PAIR } } }
-At line 26 characters 66 to 74,
+  15:                          DIP { DIP { HASH_KEY ; IMPLICIT_ACCOUNT ; ADDRESS } ; PAIR ; SWAP } ;
+  16:                          SWAP ;
+  17:                          CDR ;
+  18:                          DUP ;
+  19:                          CDR ;
+  20:                          CAR ;
+  21:                          DIP { SWAP } ;
+  22:                          PAIR ;
+  23:                          SELF ;
+  24:                          ADDRESS ;
+  25:                          CHAIN_ID ;
+  26:                          PAIR ;
+  27:                          PAIR ;
+  28:                          PACK } } ;
+  29:              DIP { DIP { DUP } } ;
+  30:              CHECK_SIGNATURE ;
+  31:              IF { DROP } { PUSH string "missigned" ; PAIR ; FAILWITH } ;
+  32:              SWAP ;
+  33:              DIP { DUP ;
+  34:                    CDR ;
+  35:                    DUP ;
+  36:                    CAR ;
+  37:                    PUSH nat 1 ;
+  38:                    ADD ;
+  39:                    DIP { CDR } ;
+  40:                    PAIR ;
+  41:                    SWAP ;
+  42:                    CAR ;
+  43:                    UNIT ;
+  44:                    SOME } ;
+  45:              UPDATE ;
+  46:              PAIR ;
+  47:              NIL operation ;
+  48:              PAIR }
+  49:            { DUP ;
+  50:              PUSH nat 42 ;
+  51:              COMPARE ;
+  52:              EQ ;
+  53:              IF {} { PUSH string "not 42" ; FAILWITH } ;
+  54:              PACK ;
+  55:              BLAKE2B ;
+  56:              DIP { CDR ; DUP ; CAR ; DIP { CDR ; DUP ; CDR } } ;
+  57:              SWAP ;
+  58:              DIP { PAIR } ;
+  59:              SWAP ;
+  60:              PAIR ;
+  61:              DUP ;
+  62:              DUP ;
+  63:              CAR ;
+  64:              DIP { CDR } ;
+  65:              MEM ;
+  66:              IF { DUP ; CAR ; DIP { CDR ; NONE unit } ; UPDATE }
+  67:                 { PUSH string "no permit" ; FAILWITH } ;
+  68:              PAIR ;
+  69:              NIL operation ;
+  70:              PAIR } } }
+At line 31 characters 60 to 68,
 script reached FAILWITH instruction
 with
   (Pair "missigned"
-        0x05070707070a000000049caecab90a00000016010e872abc26c86c2ecd2f1d4b031da948e86e330f00070700000a000000200f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c)
+        0x05070707070a000000049caecab90a000000160182c415155ce8ec47d60dfe579065addc370a4e8400070700000a000000200f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c)
 Fatal error:
+  transfer simulation failed
 ```
 
 Store the `"missigned"` bytes from the error in a bash variable:
 
 ```bash
-PERMIT_BYTES="0x05070707070a000000049caecab90a00000016010e872abc26c86c2ecd2f1d4b031da948e86e330f00070700000a000000200f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c"
+PERMIT_BYTES="0x05070707070a000000049caecab90a000000160182c415155ce8ec47d60dfe579065addc370a4e8400070700000a000000200f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c"
 ```
 
 Sign the bytes:
@@ -289,67 +318,67 @@ Sign the bytes:
 ```bash
 $ tezos-client sign bytes $PERMIT_BYTES for bob
 
-Signature: edsigte3ht7ktrXaDNQ9A1xWTez8zgRAjAVXeDYE8vGqhgsW3sX6cnt3Qou1UF16zz6Rms7DDDqJpstQ56xhPvfiwQH7i9aGWe8
+Signature: edsigu5scrvoY2AB7cnHzUd7x7ZvXEMYkArKeehN5ZXNkmfUSkyApHcW5vPcjbuTrnHUMt8mJkWmo8WScNgKL3vu9akFLAXvHxm
 ```
 
 Generate the parameter:
 
 ```haskell
-A.printPermitAdmin42Param (read "edpkuPTVBFtbYd6gZWryXypSYYq6g7FvyucwphoU78T1vmGkbhj6qb") (read "edsigte3ht7ktrXaDNQ9A1xWTez8zgRAjAVXeDYE8vGqhgsW3sX6cnt3Qou1UF16zz6Rms7DDDqJpstQ56xhPvfiwQH7i9aGWe8")
+A.printPermitAdmin42Param (read "edpkuPTVBFtbYd6gZWryXypSYYq6g7FvyucwphoU78T1vmGkbhj6qb") (read "edsigu5scrvoY2AB7cnHzUd7x7ZvXEMYkArKeehN5ZXNkmfUSkyApHcW5vPcjbuTrnHUMt8mJkWmo8WScNgKL3vu9akFLAXvHxm")
 
-Pair "edpkuPTVBFtbYd6gZWryXypSYYq6g7FvyucwphoU78T1vmGkbhj6qb" (Pair "edsigte3ht7ktrXaDNQ9A1xWTez8zgRAjAVXeDYE8vGqhgsW3sX6cnt3Qou1UF16zz6Rms7DDDqJpstQ56xhPvfiwQH7i9aGWe8" 0x0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c)
+Pair "edpkuPTVBFtbYd6gZWryXypSYYq6g7FvyucwphoU78T1vmGkbhj6qb" (Pair "edsigu5scrvoY2AB7cnHzUd7x7ZvXEMYkArKeehN5ZXNkmfUSkyApHcW5vPcjbuTrnHUMt8mJkWmo8WScNgKL3vu9akFLAXvHxm" 0x0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c)
 ```
 
 Store it in a bash variabe:
 
 ```bash
-PERMIT_PARAM='Pair "edpkuPTVBFtbYd6gZWryXypSYYq6g7FvyucwphoU78T1vmGkbhj6qb" (Pair "edsigte3ht7ktrXaDNQ9A1xWTez8zgRAjAVXeDYE8vGqhgsW3sX6cnt3Qou1UF16zz6Rms7DDDqJpstQ56xhPvfiwQH7i9aGWe8" 0x0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c)'
+PERMIT_PARAM='Pair "edpkuPTVBFtbYd6gZWryXypSYYq6g7FvyucwphoU78T1vmGkbhj6qb" (Pair "edsigu5scrvoY2AB7cnHzUd7x7ZvXEMYkArKeehN5ZXNkmfUSkyApHcW5vPcjbuTrnHUMt8mJkWmo8WScNgKL3vu9akFLAXvHxm" 0x0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c)'
 ```
 
 Anyone can submit the signed, hashed parameter:
 
 ```bash
 $ tezos-client --wait none transfer 0 from $FRED_ADDRESS to $PERMIT_ADMIN_42 \
-  --entrypoint permitParam --arg $PERMIT_PARAM --burn-cap 0.067
+  --entrypoint permit --arg $PERMIT_PARAM --burn-cap 0.067
 
 Waiting for the node to be bootstrapped before injection...
-Current head: BLnPZe1tWCdL (timestamp: 2020-07-20T19:53:50-00:00, validation: 2020-07-20T19:53:53-00:00)
+Current head: BL6wcDXfo5tc (timestamp: 2020-07-20T22:07:26-00:00, validation: 2020-07-20T22:08:02-00:00)
 Node is bootstrapped, ready for injecting operations.
-Estimated gas: 24840 units (will add 100 for safety)
+Estimated gas: 24360 units (will add 100 for safety)
 Estimated storage: 67 bytes added (will add 20 for safety)
 Operation successfully injected in the node.
-Operation hash is 'oo26yUhiN7eYx6CX9qjrYM2KZSoPfMPkWccVaYukYocN9thgYmw'
+Operation hash is 'ooF1y4wBedmk7JE7HQLZo9Gn6VBD9guJSsHVKP852HgeSMNx6bM'
 NOT waiting for the operation to be included.
 Use command
-  tezos-client wait for oo26yUhiN7eYx6CX9qjrYM2KZSoPfMPkWccVaYukYocN9thgYmw to be included --confirmations 30 --branch BLnPZe1tWCdLzRxeWJGe2cy4xbw353HHYBkRLchryBab9UfQYCb
+  tezos-client wait for ooF1y4wBedmk7JE7HQLZo9Gn6VBD9guJSsHVKP852HgeSMNx6bM to be included --confirmations 30 --branch BL6wcDXfo5tcB3MWmxWPzGQREheiWVXUpDqpdY7G57CKPZ86hCP
 and/or an external block explorer to make sure that it has been included.
 This sequence of operations was run:
   Manager signed operations:
     From: tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir
-    Fee to the baker: ꜩ0.002966
-    Expected counter: 623967
-    Gas limit: 24940
+    Fee to the baker: ꜩ0.002913
+    Expected counter: 623971
+    Gas limit: 24460
     Storage limit: 87 bytes
     Balance updates:
-      tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir ............. -ꜩ0.002966
-      fees(tz1Ke2h7sDdakHJQh8WX4Z372du1KChsksyU,284) ... +ꜩ0.002966
+      tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir ............. -ꜩ0.002913
+      fees(tz1Ke2h7sDdakHJQh8WX4Z372du1KChsksyU,284) ... +ꜩ0.002913
     Transaction:
       Amount: ꜩ0
       From: tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir
-      To: KT19uax1n4xA3Rs8aJ3Qkzp99C4BjJz2g7G6
-      Entrypoint: permitParam
+      To: KT1LWCJk8NDgMjAJ8TXR6XrKjjMmc31nLHNR
+      Entrypoint: permit
       Parameter: (Pair "edpkuPTVBFtbYd6gZWryXypSYYq6g7FvyucwphoU78T1vmGkbhj6qb"
-                       (Pair "edsigte3ht7ktrXaDNQ9A1xWTez8zgRAjAVXeDYE8vGqhgsW3sX6cnt3Qou1UF16zz6Rms7DDDqJpstQ56xhPvfiwQH7i9aGWe8"
+                       (Pair "edsigu5scrvoY2AB7cnHzUd7x7ZvXEMYkArKeehN5ZXNkmfUSkyApHcW5vPcjbuTrnHUMt8mJkWmo8WScNgKL3vu9akFLAXvHxm"
                              0x0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c))
       This transaction was successfully applied
       Updated storage:
-        (Pair 10500 (Pair 1 0x0000aad02222472cdf9892a3011c01caf6407f027081))
+        (Pair 10509 (Pair 1 0x0000aad02222472cdf9892a3011c01caf6407f027081))
       Updated big_maps:
-        Set map(10500)[(Pair 0x0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c
+        Set map(10509)[(Pair 0x0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c
               0x0000aad02222472cdf9892a3011c01caf6407f027081)] to Unit
-      Storage size: 628 bytes
+      Storage size: 591 bytes
       Paid storage size diff: 67 bytes
-      Consumed gas: 24840
+      Consumed gas: 24360
       Balance updates:
         tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir ... -ꜩ0.067
 ```
@@ -358,43 +387,43 @@ Then, anyone can submit `42` in place of Bob:
 
 ```bash
 $ tezos-client --wait none transfer 0 from $FRED_ADDRESS to $PERMIT_ADMIN_42 \
-  --entrypoint wrappedParam --arg 42 --burn-cap 0.000001
+  --entrypoint wrapped --arg 42 --burn-cap 0.000001
 
 Waiting for the node to be bootstrapped before injection...
-Current head: BLo4THYkvac2 (timestamp: 2020-07-20T19:54:50-00:00, validation: 2020-07-20T19:55:12-00:00)
+Current head: BLZ1TWybYM5z (timestamp: 2020-07-20T22:08:38-00:00, validation: 2020-07-20T22:08:57-00:00)
 Node is bootstrapped, ready for injecting operations.
-Estimated gas: 24799 units (will add 100 for safety)
+Estimated gas: 24319 units (will add 100 for safety)
 Estimated storage: no bytes added
 Operation successfully injected in the node.
-Operation hash is 'oo1z3vD896cCiferDQh5Jn3DwnfkCARiWoFDxZqoNqX6gTLJtH2'
+Operation hash is 'onsnsPLXKyFW1kDrGZftdbepkzqqp8RkcYCQPX9yMLbwtdi1ewU'
 NOT waiting for the operation to be included.
 Use command
-  tezos-client wait for oo1z3vD896cCiferDQh5Jn3DwnfkCARiWoFDxZqoNqX6gTLJtH2 to be included --confirmations 30 --branch BLo4THYkvac2Wkw8aND9seTmioCH3duDvudiQwGWkzGdXWhwnpf
+  tezos-client wait for onsnsPLXKyFW1kDrGZftdbepkzqqp8RkcYCQPX9yMLbwtdi1ewU to be included --confirmations 30 --branch BLZ1TWybYM5zpQNEPxKUDdVQTc5nJY6ViDQSzGPDnarF4VT2ojm
 and/or an external block explorer to make sure that it has been included.
 This sequence of operations was run:
   Manager signed operations:
     From: tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir
-    Fee to the baker: ꜩ0.002761
-    Expected counter: 623968
-    Gas limit: 24899
+    Fee to the baker: ꜩ0.002708
+    Expected counter: 623972
+    Gas limit: 24419
     Storage limit: 0 bytes
     Balance updates:
-      tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir ............. -ꜩ0.002761
-      fees(tz1Ke2h7sDdakHJQh8WX4Z372du1KChsksyU,284) ... +ꜩ0.002761
+      tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir ............. -ꜩ0.002708
+      fees(tz1Ke2h7sDdakHJQh8WX4Z372du1KChsksyU,284) ... +ꜩ0.002708
     Transaction:
       Amount: ꜩ0
       From: tz1RwoEdg4efDQHarsw6aKtMUYvg278Gv1ir
-      To: KT19uax1n4xA3Rs8aJ3Qkzp99C4BjJz2g7G6
-      Entrypoint: wrappedParam
+      To: KT1LWCJk8NDgMjAJ8TXR6XrKjjMmc31nLHNR
+      Entrypoint: wrapped
       Parameter: 42
       This transaction was successfully applied
       Updated storage:
-        (Pair 10500 (Pair 1 0x0000aad02222472cdf9892a3011c01caf6407f027081))
+        (Pair 10509 (Pair 1 0x0000aad02222472cdf9892a3011c01caf6407f027081))
       Updated big_maps:
-        Unset map(10500)[(Pair 0x0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c
+        Unset map(10509)[(Pair 0x0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c
               0x0000aad02222472cdf9892a3011c01caf6407f027081)]
-      Storage size: 561 bytes
-      Consumed gas: 24799
+      Storage size: 524 bytes
+      Consumed gas: 24319
 ```
 
 

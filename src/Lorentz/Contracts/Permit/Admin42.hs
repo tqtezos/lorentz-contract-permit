@@ -9,52 +9,73 @@
 
 module Lorentz.Contracts.Permit.Admin42 where
 
+import Data.Bool
 import Data.Either
+import Data.Eq
+import Data.Function
+import Data.Functor
+import Data.Bifunctor
 import Data.Maybe
 import Data.Functor.Identity
 import Control.Applicative
 import Control.Monad.Fail
+import Control.Monad (Monad((>>=)))
 import System.IO
 import Text.Show
+import Text.Read
 
-import Lorentz -- hiding (checkSignature)
-import Michelson.Interpret
-import Michelson.Test.Dummy
-import Michelson.Text
 -- import Tezos.Address
 -- import Tezos.Crypto (checkSignature)
+import Lorentz -- hiding (checkSignature)
+import Michelson.Interpret
+import Michelson.Macro
+import Michelson.Parser hiding (parseValue)
+import Michelson.Test.Dummy
+import Michelson.Text
+import Michelson.Typed.T
+import Michelson.Typed.Sing
+import Michelson.TypeCheck.Instr
+import Michelson.TypeCheck.TypeCheck
 import Util.IO
 import Util.Named
 
+import Tezos.Crypto.Orphans ()
 import Lorentz.Contracts.Admin42
 import qualified Lorentz.Contracts.Permit as Permit
 import qualified Lorentz.Contracts.Permit.Type as Permit
 -- import qualified Lorentz.Contracts.Revoke as Revoke
 
+import Control.Monad.Trans.Reader
+import Data.Singletons
+import Text.Megaparsec (eof)
 import qualified Data.Text.Lazy.IO as TL
 import qualified Data.ByteString.Base16 as Base16
 
 
-permittableAdmin42Contract ::
-     ContractCode Natural (Permit.Storage Address)
+permittableAdmin42Contract :: forall t s.
+  Natural & (t, Permit.Storage Address) & s :-> ([Operation], Permit.Storage Address) & s
+     -- ContractCode Natural (Permit.Storage Address)
 permittableAdmin42Contract = do
-  unpair
+  -- unpair
   dup
   push @Natural 42
   assertEq $ mkMTextUnsafe "not 42"
   pack
+  Permit.safeBlake2B
   dip $ do
+    cdr
     Permit.unStorage
-    unpair
+    dup
+    car
     dip $ do
-      unpair
-      swap
+      cdr
       dup
+      cdr
   swap
-  Permit.assertSentParam
   dip $ do
-    swap
     pair
+    Permit.toPermit
+  Permit.assertSentParam
   pair
   Permit.toStorage
   nil
@@ -134,21 +155,84 @@ printPermitAdmin42Param key' sig' -- _chainId' _contractAddr' _counter'
     --   (#counter .! counter')
     --   hash'
 
--- | Interpret Michelson code and generate corresponding bytestring.
-runPermitAdmin42 :: ChainId -> Address -> Address -> Permit.SignedParams -> IO ()
-runPermitAdmin42 chainId' selfAddress' adminAddress' xs = either
-    (fail . fromString . show)
-    (\(Identity (_, x) :& RNil) ->
-      putStrLn "passed" *>
-      print x *>
-      TL.putStrLn (printLorentzValue True adminAddress') *>
-      putStrLn "" *>
-      return ()
-    )
-    $ interpretLorentzInstr
-      env
-      permitAdmin42Contract
-      (Identity (Permit.Permit xs, Permit.mkStorage adminAddress') :& RNil)
-  where
-    env = dummyContractEnv { ceSelf = selfAddress', ceChainId = chainId' }
+-- -- | Interpret Michelson code and generate corresponding bytestring.
+-- runPermitAdmin42 :: ChainId -> Address -> Address -> Permit.SignedParams -> IO ()
+-- runPermitAdmin42 chainId' selfAddress' adminAddress' xs = either
+--     (fail . fromString . show)
+--     (\(Identity (_, x) :& RNil) ->
+--       putStrLn "passed" *>
+--       print x *>
+--       TL.putStrLn (printLorentzValue True adminAddress') *>
+--       putStrLn "" *>
+--       return ()
+--     )
+--     $ interpretLorentzInstr
+--       env
+--       permitAdmin42Contract
+--       (Identity (Permit.Permit xs, Permit.mkStorage adminAddress') :& RNil)
+--   where
+--     env = dummyContractEnv { ceSelf = selfAddress', ceChainId = chainId' }
+
+
+
+
+
+
+-- | Parse and typecheck a Michelson value
+parseTypeCheckValue ::
+     forall t. (SingI t)
+  => Parser (Value t)
+parseTypeCheckValue =
+  (>>= either (fail . show) return) $
+  runTypeCheckIsolated . flip runReaderT def . typeCheckValue . expandValue <$>
+  (value <* eof)
+
+withAdmin42Storage :: Text -> (Permit.Storage Address -> r) -> r
+withAdmin42Storage storageTxt f =
+  let parsedParam = parseNoEnv
+        (parseTypeCheckValue @(ToT (Permit.DummyStorage Address)))
+        "PermitAdmin42"
+        storageTxt
+   in let param = either (error . fromString . show) id parsedParam
+   in case fromVal @(Permit.DummyStorage Address) param of
+        Permit.DummyStorage _dummyPresignedParams counter wrappedStorage ->
+          f $ Permit.Storage mempty counter wrappedStorage
+
+
+-- -- | Interpret Michelson code and generate corresponding bytestring.
+-- runPermitAdmin42 :: Address -> ChainId -> Text -> PublicKey -> IO ()
+-- runPermitAdmin42 selfAddress' chainId' storageTxt pubKey' =
+--   withAdmin42Storage storageTxt $ \storage' ->
+--     either
+--       (\x -> case x of
+--                MichelsonFailedWith (xs :: Value t) ->
+--                  case sing @t of
+--                    STPair STString (STPair STBytes (STPair (STPair STChainId STAddress) (STPair STNat STBytes))) ->
+--                      case fromVal @(MText, (ByteString, ((ChainId, Address), ("counter" :! Natural, Permit.Blake2B)))) xs of
+--                        (missigned', (bytes'', ys)) ->
+--                          bool
+--                             (error . fromString . ("runPermitAdmin42: unexpected failure: " <>) $ show x)
+--                             (TL.putStrLn (printLorentzValue False ys) *>
+--                              print ("0x" <> Base16.encode bytes''))
+--                             (missigned' == mkMTextUnsafe "missigned")
+--                    _ -> error . fromString . ("runPermitAdmin42: unexpected failure: " <>) $ show x
+--                _ -> error . fromString $ show x
+--       )
+--       (\(Identity (_, x) :& RNil) -> print x)
+--
+--   -- either
+--   --   (fail . fromString . show)
+--   --   (\(Identity (_, x) :& RNil) -> _ x)
+--     $
+--     interpretLorentzInstr env permitAdmin42Contract (Identity (Permit.Permit $ Permit.SignedParams pubKey' dummySignature hash', storage') :& RNil)
+--   where
+--     env = dummyContractEnv { ceSelf = selfAddress', ceChainId = chainId' }
+--
+--     bytes' :: ByteString
+--     bytes' = lPackValue (42 :: Natural)
+--
+--     dummySignature = read "edsigtfkWys7vyeQy1PnHcBuac1dgj2aJ8Jv3fvoDE5XRtxTMRgJBwVgMTzvhAzBQyjH48ux9KE8jRZBSk4Rv2bfphsfpKP3ggM"
+--
+--     hash' :: Permit.Blake2B
+--     hash' = Permit.mkBlake2B bytes'
 
