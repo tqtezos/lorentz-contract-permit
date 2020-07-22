@@ -52,14 +52,6 @@ type Permits = BigMap Permit ()
 
 type Storage = Permit.Storage Permits
 
--- | Add a `Permit` to `Permits`
-addToPermits :: Permit & Permits & s :-> Permits & s
-addToPermits = do
-  dip $ do
-    unit
-    some
-  update
-
 -- | Assert the parameter exists and deletes it from `Permits`
 assertSentParam :: forall s. Permits & Permit & s :-> Permits & s
 assertSentParam = do

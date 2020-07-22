@@ -73,6 +73,9 @@ instance HasTypeAnn Permit
 toPermit :: (Blake2B, Address) & s :-> Permit & s
 toPermit = forcedCoerce_
 
+unPermit ::  Permit & s :-> (Blake2B, Address) & s
+unPermit = forcedCoerce_
+
 data Parameter cp
   = Permit !SignedParams
   | Wrapped !cp
