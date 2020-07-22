@@ -10,44 +10,22 @@
 module Lorentz.Contracts.Permit.Admin42 where
 
 import Data.Bool
-import Data.Either
-import Data.Eq
 import Data.Function
-import Data.Functor
-import Data.Bifunctor
 import Data.Maybe
-import Data.Functor.Identity
-import Control.Applicative
-import Control.Monad.Fail
-import Control.Monad (Monad((>>=)))
 import System.IO
-import Text.Show
-import Text.Read
 
--- import Tezos.Address
 -- import Tezos.Crypto (checkSignature)
 import Lorentz -- hiding (checkSignature)
-import Michelson.Interpret
-import Michelson.Macro
-import Michelson.Parser hiding (parseValue)
-import Michelson.Test.Dummy
 import Michelson.Text
-import Michelson.Typed.T
-import Michelson.Typed.Sing
-import Michelson.TypeCheck.Instr
-import Michelson.TypeCheck.TypeCheck
 import Util.IO
 import Util.Named
 
 import Tezos.Crypto.Orphans ()
 import Lorentz.Contracts.Admin42
-import qualified Lorentz.Contracts.Permit as Permit
-import qualified Lorentz.Contracts.Permit.Type as Permit
+import qualified Lorentz.Contracts.Permit.Paired as Permit
+import qualified Lorentz.Contracts.Permit.Paired.Type as Permit
 -- import qualified Lorentz.Contracts.Revoke as Revoke
 
-import Control.Monad.Trans.Reader
-import Data.Singletons
-import Text.Megaparsec (eof)
 import qualified Data.Text.Lazy.IO as TL
 import qualified Data.ByteString.Base16 as Base16
 
@@ -175,28 +153,6 @@ printPermitAdmin42Param key' sig' -- _chainId' _contractAddr' _counter'
 
 
 
-
-
-
--- | Parse and typecheck a Michelson value
-parseTypeCheckValue ::
-     forall t. (SingI t)
-  => Parser (Value t)
-parseTypeCheckValue =
-  (>>= either (fail . show) return) $
-  runTypeCheckIsolated . flip runReaderT def . typeCheckValue . expandValue <$>
-  (value <* eof)
-
-withAdmin42Storage :: Text -> (Permit.Storage Address -> r) -> r
-withAdmin42Storage storageTxt f =
-  let parsedParam = parseNoEnv
-        (parseTypeCheckValue @(ToT (Permit.DummyStorage Address)))
-        "PermitAdmin42"
-        storageTxt
-   in let param = either (error . fromString . show) id parsedParam
-   in case fromVal @(Permit.DummyStorage Address) param of
-        Permit.DummyStorage _dummyPresignedParams counter wrappedStorage ->
-          f $ Permit.Storage mempty counter wrappedStorage
 
 
 -- -- | Interpret Michelson code and generate corresponding bytestring.

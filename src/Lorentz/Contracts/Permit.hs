@@ -19,23 +19,6 @@ import Text.Show
 
 import Lorentz.Contracts.Permit.Type
 
--- | Given a `Contract` that requires a "`sender` check"-like
--- operation, this adds functionality so that a user can pre-approve parameters,
--- allowing others to submit those parameters on their behalf
-permitWrapperContract :: forall cp st. (HasTypeAnn cp, NiceParameterFull cp)
-  => cp & (Parameter cp, Storage st) & '[] :-> ([Operation], Storage st) & '[]
-  -> ContractCode (Parameter cp) (Storage st)
-permitWrapperContract targetContract = do
-  dup
-  car
-  caseT @(Parameter cp)
-    ( #cPermit /-> do
-        permitParam @cp @_ @st
-        nil
-        pair
-    , #cWrapped /-> targetContract
-    )
-
 assertSignature :: PublicKey & Signature & ByteString & s :-> s
 assertSignature = do
   dip $ dip dup
@@ -46,70 +29,6 @@ assertSignature = do
        push $ mkMTextUnsafe "missigned"
        pair
        failWith
-
-checkPermit :: forall cp t st s. (HasTypeAnn cp, NiceParameterFull cp) =>
-  SignedParams & (t, Storage st) & s :-> Permit & Storage st & s
-checkPermit = do
-  unSignedParams
-  dup
-  car
-  dup
-  dip $ do
-    swap
-    cdr
-    dup
-    car
-    dip $ do
-      cdr
-      dup
-      dip $ do
-        dip publicKeyToAddress
-        pair
-        swap
-      swap
-      cdr
-      dup
-      unStorage
-      cdr
-      car
-      dip $ do
-        swap
-      packWithChainId @(Parameter cp)
-  assertSignature
-  swap
-  toPermit
-
-incrementCounter :: ("counter" :! Natural, st) & s :-> ("counter" :! Natural, st) & s
-incrementCounter = do
-  dup
-  car
-  forcedCoerce_ @("counter" :! Natural) @Natural
-  push @Natural 1
-  add
-  forcedCoerce_ @Natural @("counter" :! Natural)
-  dip cdr
-  pair
-
-addPermit :: Permit & Storage st & s :-> Storage st & s
-addPermit = do
-  dip $ do
-    unStorage
-    dup
-    cdr
-    incrementCounter
-    swap
-    car
-    unit
-    some
-  update
-  pair
-  toStorage
-
-permitParam :: forall cp t st s. (HasTypeAnn cp, NiceParameterFull cp)
-  => SignedParams & (t, Storage st) & s :-> Storage st & s
-permitParam = do
-  checkPermit @cp
-  addPermit
 
 packWithChainId
     :: forall p s. NiceParameterFull p
