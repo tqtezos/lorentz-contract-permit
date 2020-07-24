@@ -29,7 +29,6 @@ import qualified Lorentz.Contracts.Permit.Paired.Type as Permit
 import qualified Data.Text.Lazy.IO as TL
 import qualified Data.ByteString.Base16 as Base16
 
-
 permittableAdmin42Contract :: forall t s.
   Natural & (t, Permit.Storage Address) & s :-> ([Operation], Permit.Storage Address) & s
      -- ContractCode Natural (Permit.Storage Address)
@@ -150,10 +149,6 @@ printPermitAdmin42Param key' sig' -- _chainId' _contractAddr' _counter'
 --       (Identity (Permit.Permit xs, Permit.mkStorage adminAddress') :& RNil)
 --   where
 --     env = dummyContractEnv { ceSelf = selfAddress', ceChainId = chainId' }
-
-
-
-
 
 -- -- | Interpret Michelson code and generate corresponding bytestring.
 -- runPermitAdmin42 :: Address -> ChainId -> Text -> PublicKey -> IO ()
