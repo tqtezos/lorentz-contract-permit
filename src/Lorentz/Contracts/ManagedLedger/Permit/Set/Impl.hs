@@ -1,14 +1,8 @@
-
--- {-# LANGUAGE DuplicateRecordFields #-}
--- {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE RebindableSyntax #-}
--- {-# LANGUAGE UndecidableSuperClasses #-}
 
 {-# OPTIONS -Wno-missing-export-lists #-}
 {-# OPTIONS -Wno-orphans #-}
 {-# OPTIONS -Wno-unused-do-bind #-}
-
-
 
 module Lorentz.Contracts.ManagedLedger.Permit.Set.Impl where
 
@@ -17,34 +11,40 @@ import Michelson.Text
 
 import Lorentz.Contracts.ManagedLedger.Permit.Set.Type
 
-import qualified Lorentz.Contracts.ManagedLedger.Types as ManagedLedger
-import Lorentz.Contracts.Spec.AbstractLedgerInterface (TransferParams(..), GetBalanceArg, GetTotalSupplyArg)
-import qualified Lorentz.Contracts.Spec.AbstractLedgerInterface as Abstract
+import qualified Lorentz.Contracts.Permit.Set.Type as Permit
 
--- import Lorentz.Contracts.ManagedLedger.Types
--- import Lorentz.Contracts.Spec.ManagedLedgerInterface
+import qualified Lorentz.Contracts.ManagedLedger.Types as ManagedLedger
+import Lorentz.Contracts.Spec.AbstractLedgerInterface (TransferParams, GetBalanceArg, GetTotalSupplyArg)
 
 ----------------------------------------------------------------------------
 -- Entrypoints
 ----------------------------------------------------------------------------
 
 transfer
-  :: forall store. (LedgerC store, StoreHasField store "paused" Bool)
+  :: forall store. (StorageContains store '["permits" := Address ~> Permit.PermitSet], LedgerC store, StoreHasField store "paused" Bool)
   => Entrypoint TransferParams store
 transfer = do
   dip ensureNotPaused
 
-  -- Check whether we need to consider allowance
+  -- Check whether we need to consider permit
   stackType @[TransferParams, store]
 
-  -- getField #from
-  -- sender
-  -- stackType @[Address, Address, TransferParams, store]
-
-  -- -- Consume allowance if necessary
-  -- if IsEq
-  --   then nop
-  --   else dup >> dip @TransferParams consumeAllowance
+  getField #from
+  sender
+  stackType @[Address, Address, TransferParams, store]
+  if IsEq
+     then nop -- from == sender
+    else do -- we need to check for a permit
+      dup
+      toField #from
+      swap
+      dup
+      dip $ do
+        pack
+        Permit.safeBlake2B
+        pair
+        Permit.toPermit
+        Permit.assertSentParamStorageContains
 
   -- Perform transfer
   debitFrom
@@ -191,20 +191,18 @@ ensureNotPaused = do
 -- Contract
 ----------------------------------------------------------------------------
 
-managedLedgerContractTemplate :: forall permits store. StorageC permits store => Contract Parameter store
+managedLedgerContractTemplate :: forall store. StorageC Permit.PermitSet store => Contract Parameter store
 managedLedgerContractTemplate = defaultContract $ contractName "Managed Ledger with Permit" $ do
   contractGeneralDefault
   unpair
   entryCaseSimple @Parameter
     ( #cTransfer /-> transfer @store
-    -- , #cApprove /-> approve
-    -- , #cApproveCAS /-> approveCAS
-    -- , #cGetAllowance /-> getAllowance
     , #cGetBalance /-> getBalance @store
     , #cGetTotalSupply /-> getTotalSupply @store
-    , #cSetPause /-> setPause @permits @store
-    , #cSetAdministrator /-> setAdministrator @permits @store
-    , #cGetAdministrator /-> getAdministrator @permits @store
-    , #cMint /-> mint @permits @store
-    , #cBurn /-> burn @permits @store
+    , #cSetPause /-> setPause @Permit.PermitSet @store
+    , #cSetAdministrator /-> setAdministrator @Permit.PermitSet @store
+    , #cGetAdministrator /-> getAdministrator @Permit.PermitSet @store
+    , #cMint /-> mint @Permit.PermitSet @store
+    , #cBurn /-> burn @Permit.PermitSet @store
     )
+
