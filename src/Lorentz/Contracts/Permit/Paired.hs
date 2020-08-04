@@ -28,7 +28,7 @@ import Lorentz.Contracts.Permit.Paired.Type
 -- | Given a `Contract` that requires a "`sender` check"-like
 -- operation, this adds functionality so that a user can pre-approve parameters,
 -- allowing others to submit those parameters on their behalf
-permitWrapperContract :: forall cp st. (HasTypeAnn cp, NiceParameterFull cp)
+permitWrapperContract :: forall cp st. (HasTypeAnn cp, NiceParameterFull cp, ParameterHasEntryPoints (Parameter cp))
   => cp & (Parameter cp, Storage st) & '[] :-> ([Operation], Storage st) & '[]
   -> ContractCode (Parameter cp) (Storage st)
 permitWrapperContract targetContract = do
@@ -42,7 +42,7 @@ permitWrapperContract targetContract = do
     , #cWrapped /-> targetContract
     )
 
-checkPermit :: forall cp t st s. (HasTypeAnn cp, NiceParameterFull cp) =>
+checkPermit :: forall cp t st s. (HasTypeAnn cp, NiceParameterFull cp, ParameterHasEntryPoints (Parameter cp)) =>
   SignedParams & (t, Storage st) & s :-> Permit & Storage st & s
 checkPermit = do
   unSignedParams
@@ -74,7 +74,7 @@ checkPermit = do
   swap
   toPermit
 
-permitParam :: forall cp t st s. (HasTypeAnn cp, NiceParameterFull cp)
+permitParam :: forall cp t st s. (HasTypeAnn cp, NiceParameterFull cp, ParameterHasEntryPoints (Parameter cp))
   => SignedParams & (t, Storage st) & s :-> Storage st & s
 permitParam = do
   checkPermit @cp

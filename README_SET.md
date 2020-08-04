@@ -192,14 +192,6 @@ Make a bash variable for the contract:
 PERMIT_ADMIN_42_SET="KT1Uj1FA9zW6erGo2wR6HGxjhdTuLQWpTghA"
 ```
 
-Get the Chain ID:
-
-```bash
-$ tezos-client rpc get /chains/main/chain_id
-
-"NetXjD3HPJJjmcd"
-```
-
 Generate an incorrect signature (you can use this one):
 
 ```bash

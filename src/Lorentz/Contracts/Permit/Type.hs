@@ -84,9 +84,6 @@ data Parameter cp
 deriving stock instance (Show cp) => Show (Parameter cp)
 deriving anyclass instance (IsoValue cp) => IsoValue (Parameter cp)
 
-instance (HasTypeAnn cp, IsoValue cp) => ParameterHasEntryPoints (Parameter cp) where
-  type ParameterEntryPointsDerivation (Parameter cp) = EpdPlain
-
 data Storage permits st = Storage
   { presignedParams :: !permits
   , counter         :: !("counter" :! Natural)
@@ -113,6 +110,16 @@ incrementCounter = do
   forcedCoerce_ @Natural @("counter" :! Natural)
   dip cdr
   pair
+
+incrementCounterStorageContains :: forall st s. StorageContains st '["counter" := ("counter" :! Natural)]
+  => st & s :-> st & s
+incrementCounterStorageContains = do
+  stGetField #counter
+  forcedCoerce_ @("counter" :! Natural) @Natural
+  push @Natural 1
+  add
+  forcedCoerce_ @Natural @("counter" :! Natural)
+  stSetField #counter
 
 mkStorage :: Monoid permits => st -> Storage permits st
 mkStorage = Storage mempty (#counter .! 0)

@@ -191,8 +191,9 @@ ensureNotPaused = do
 -- Contract
 ----------------------------------------------------------------------------
 
-managedLedgerContractTemplate :: forall store. StorageC Permit.PermitSet store => Contract Parameter store
-managedLedgerContractTemplate = defaultContract $ contractName "Managed Ledger with Permit" $ do
+-- | defaultContract $ contractName "Managed Ledger with Permit" $
+managedLedgerContractTemplate :: forall store. StorageC Permit.PermitSet store => ContractCode Parameter store
+managedLedgerContractTemplate = do
   contractGeneralDefault
   unpair
   entryCaseSimple @Parameter

@@ -11,10 +11,6 @@ import qualified Lorentz.Contracts.Spec.ApprovableLedgerInterface as AL
 import Lorentz.Contracts.Spec.AbstractLedgerInterface (TransferParams(..))
 import qualified Lorentz.Contracts.Spec.AbstractLedgerInterface as Abstract
 
--- tt :: ()
--- tt = _
-
-
 -- BEGIN not exported from Lorentz.Contracts.ManagedLedger.Types
 
 data StorageFields = StorageFields
@@ -52,12 +48,11 @@ data Parameter
 instance ParameterHasEntryPoints Parameter where
   type ParameterEntryPointsDerivation Parameter = EpdPlain
 
+instance HasTypeAnn Parameter
+
 type ParameterC param =
   ParameterContainsEntryPoints param
     [ "Transfer"         :> AL.TransferParams
-    -- , "Approve"          :> AL.ApproveParams
-    -- , "ApproveCAS"       :> ApproveCasParams
-    -- , "GetAllowance"     :> AL.GetAllowanceArg
     , "GetBalance"       :> AL.GetBalanceArg
     , "GetTotalSupply"   :> AL.GetTotalSupplyArg
     , "SetPause"         :> Bool
@@ -95,7 +90,6 @@ type StorageC permits store =
   , StorageContains store
    [ "admin" := Address
    , "paused" := Bool
-   -- , "fields" := ManagedLedger.LedgerValue
    , "permits" := Address ~> permits
    , "counter" := ("counter" :! Natural)
    ]

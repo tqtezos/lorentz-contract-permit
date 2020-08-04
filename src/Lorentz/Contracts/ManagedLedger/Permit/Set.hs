@@ -27,8 +27,7 @@ import Data.Function
 import Data.Maybe
 import System.IO
 
--- import Tezos.Crypto (checkSignature)
-import Lorentz -- hiding (checkSignature)
+import Lorentz
 import Michelson.Text
 import Util.IO
 import Util.Named
@@ -37,12 +36,21 @@ import Tezos.Crypto.Orphans ()
 import qualified Lorentz.Contracts.Permit.Set as Permit
 import qualified Lorentz.Contracts.Permit.Set.Type as Permit
 
-
 import qualified Data.Text.Lazy.IO as TL
 import qualified Data.ByteString.Base16 as Base16
 
-permittableManagedLedgerSetContract :: Contract Parameter (Storage PermitSet.PermitSet)
-permittableManagedLedgerSetContract = managedLedgerContractTemplate
+instance ParameterHasEntryPoints (Permit.Parameter Parameter) where
+  type ParameterEntryPointsDerivation (Permit.Parameter Parameter) = EpdRecursive
+
+permittableManagedLedgerSetContract :: ContractCode (Permit.Parameter Parameter) (Storage PermitSet.PermitSet)
+permittableManagedLedgerSetContract = Permit.permitWrapperContractStorageContains @Parameter $ do
+  dip cdr
+  pair
+  managedLedgerContractTemplate @(Storage PermitSet.PermitSet)
+
+-- permitWrapperContract :: forall cp st. (HasTypeAnn cp, NiceParameterFull cp)
+--   => cp & (Parameter cp, Storage st) & '[] :-> ([Operation], Storage st) & '[]
+--   -> ContractCode (Parameter cp) (Storage st)
 
 -- | Print `permittableManagedLedgerSetContract`
 --
@@ -53,7 +61,7 @@ printPermittableManagedLedgerSetContract :: Maybe FilePath -> Bool -> IO ()
 printPermittableManagedLedgerSetContract mOutput forceOneLine' =
     maybe TL.putStrLn writeFileUtf8 mOutput $
     printLorentzContract forceOneLine' $
-      permittableManagedLedgerSetContract
+      (defaultContract permittableManagedLedgerSetContract)
         { cDisableInitialCast = True }
 
 -- | Unpaused with empty initial ledger
@@ -76,7 +84,6 @@ initPermittableManagedLedgerSetContract adminAddress forceOneLine =
   printLorentzValue @(Storage PermitSet.PermitSet) forceOneLine $
   mkSimpleStorage adminAddress
 
-
 printPermittableManagedLedgerSetParam :: PublicKey -> Signature -> Address -> Address -> Natural -> IO () -- ChainId -> Address -> Natural ->
 printPermittableManagedLedgerSetParam key' sig' from' to' value' -- _chainId' _contractAddr' _counter'
   | True = -- checkSignature key' sig' hashBytes'
@@ -95,5 +102,4 @@ printPermittableManagedLedgerSetParam key' sig' from' to' value' -- _chainId' _c
 
     hash' :: Permit.Blake2B
     hash' = Permit.mkBlake2B bytes'
-
 

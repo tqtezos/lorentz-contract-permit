@@ -14,7 +14,6 @@ import Data.Function
 import Data.Maybe
 import System.IO
 
--- import Tezos.Crypto (checkSignature)
 import Lorentz -- hiding (checkSignature)
 import Michelson.Text
 import Util.IO
@@ -23,16 +22,13 @@ import Util.Named
 import Tezos.Crypto.Orphans ()
 import qualified Lorentz.Contracts.Permit.Set as Permit
 import qualified Lorentz.Contracts.Permit.Set.Type as Permit
--- import qualified Lorentz.Contracts.Revoke as Revoke
 
 import qualified Data.Text.Lazy.IO as TL
 import qualified Data.ByteString.Base16 as Base16
 
 permittableAdmin42SetContract :: forall t s.
   Natural & (t, Permit.Storage Address) & s :-> ([Operation], Permit.Storage Address) & s
-     -- ContractCode Natural (Permit.Storage Address)
 permittableAdmin42SetContract = do
-  -- unpair
   dup
   push @Natural 42
   assertEq $ mkMTextUnsafe "not 42"
@@ -84,6 +80,9 @@ printInitPermitAdmin42Set adminAddr =
   Permit.mkStorage adminAddr
   where
     forceOneLine = True
+
+instance ParameterHasEntryPoints (Permit.Parameter Natural) where
+  type ParameterEntryPointsDerivation (Permit.Parameter Natural) = EpdPlain
 
 printPermitAdmin42SetBytes :: ChainId -> Address -> Natural -> IO ()
 printPermitAdmin42SetBytes chainId' contractAddr' counter' =

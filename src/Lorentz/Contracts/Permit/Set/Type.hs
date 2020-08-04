@@ -54,6 +54,12 @@ getPermitSet = do
   get
   ifNone emptySet nop
 
+getPermitSetStorageContains :: forall st s. StorageContains st '["permits" := Address ~> PermitSet]
+  => Address & st & s :-> PermitSet & s
+getPermitSetStorageContains = do
+  stGet #permits
+  ifNone emptySet nop
+
 type Storage = Permit.Storage Permits
 
 -- | Assert the parameter exists and deletes it from `Permits`
@@ -92,7 +98,9 @@ assertSentParam = do
           else failWith
 
 -- | `assertSentParam`, using `StorageContains`
-assertSentParamStorageContains :: forall s store. StorageContains store '["permits" := Address ~> PermitSet] => Permit & store & s :-> store & s
+assertSentParamStorageContains ::
+     forall s store. StorageContains store '[ "permits" := Address ~> PermitSet]
+  => Permit & store & s :-> store & s
 assertSentParamStorageContains = do
   pair
   dup
@@ -140,6 +148,7 @@ addPermit = do
       swap
       car
       dup
+      stackType @(Permits & Permits & ("counter" :! Natural, st) & s)
     cdr
     dup
     dip swap
@@ -152,4 +161,27 @@ addPermit = do
   pair
   toStorage
 
+addPermitStorageContains ::
+     forall st s.
+     StorageContains st '[ "counter" := ("counter" :! Natural), "permits" := Address ~> PermitSet]
+  => Permit & st & s :-> st & s
+addPermitStorageContains = do
+  unPermit
+  dup
+  car
+  stackType @(Blake2B & ((Blake2B, Address) & (st & s)))
+  dip $ do
+    dip $ do
+      Permit.incrementCounterStorageContains
+    cdr
+    dup
+    dip $ do
+      dip dup
+      getPermitSetStorageContains
+    swap
+    push True
+  update @PermitSet
+  some
+  swap
+  stUpdate #permits
 
