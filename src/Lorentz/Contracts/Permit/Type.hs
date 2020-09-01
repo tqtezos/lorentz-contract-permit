@@ -76,6 +76,16 @@ toPermit = forcedCoerce_
 unPermit ::  Permit & s :-> (Blake2B, Address) & s
 unPermit = forcedCoerce_
 
+permitParamHash :: Permit & s :-> Blake2B & s
+permitParamHash = do
+  unPermit
+  car
+
+permitSigner :: Permit & s :-> Address & s
+permitSigner = do
+  unPermit
+  cdr
+
 data Parameter cp
   = Permit !SignedParams
   | Wrapped !cp
@@ -93,6 +103,10 @@ data Storage permits st = Storage
 
 deriving stock instance (Show permit, Show st) => Show (Storage permit st)
 deriving anyclass instance (IsoValue permit, IsoValue st) => IsoValue (Storage permit st)
+
+instance HasFieldOfType (Storage permits st) name field =>
+         StoreHasField (Storage permits st) name field where
+  storeFieldOps = storeFieldOpsADT
 
 unStorage :: Storage permits st & s :-> (permits, ("counter" :! Natural, st)) & s
 unStorage = forcedCoerce_
