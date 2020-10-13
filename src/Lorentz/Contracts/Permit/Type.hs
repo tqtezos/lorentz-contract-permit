@@ -9,93 +9,166 @@
 module Lorentz.Contracts.Permit.Type where
 
 import Lorentz
-import Michelson.Text
+import Tezos.Crypto.Hash
+import Util.Named
+import Michelson.Parser -- hiding (parseValue)
+import Michelson.TypeCheck.Instr
+import Michelson.TypeCheck.TypeCheck
+import Michelson.Macro
 
+import Data.Either
+import Data.Function
+import Control.Applicative
+import Control.Monad hiding ((>>), fail)
+import Control.Monad.Fail
 import Text.Show (Show(..))
 
-type Blake2B = ByteString
+import Control.Monad.Trans.Reader
+import Data.Singletons
+import Text.Megaparsec (eof)
+
+newtype Blake2B =
+  UnsafeBlake2B ByteString
+  deriving stock Show
+  deriving stock Eq
+  deriving stock Ord
+  deriving stock Generic
+  deriving anyclass IsoValue
+
+instance HasTypeAnn Blake2B
+
+safeBlake2B :: forall s. ByteString & s :-> Blake2B & s
+safeBlake2B = blake2B >> forcedCoerce_ @ByteString @Blake2B
+
+mkBlake2B :: ByteString -> Blake2B
+mkBlake2B = UnsafeBlake2B . blake2b
+
 
 data SignedParams = SignedParams
-  { signer_key :: !PublicKey
+  { signerKey :: !PublicKey
   , signature  :: !Signature
-  , param_hash :: !Blake2B
+  , paramHash :: !Blake2B
   }
   deriving stock Show
   deriving stock Generic
   deriving anyclass IsoValue
 
+instance HasTypeAnn SignedParams
+
 unSignedParams :: SignedParams & s :-> (PublicKey, (Signature, Blake2B)) & s
 unSignedParams = forcedCoerce_
 
-type Permits = BigMap (Blake2B, Address) ()
-
-data SentParam = SentParam
-  { approvalMap :: !Permits
-  , packedParam :: !Blake2B
-  , permitter :: !Address
+data Permit = MkPermit
+  { paramHash :: !Blake2B
+  , signer :: !Address
   }
+  deriving stock Eq
+  deriving stock Ord
+  deriving stock Show
   deriving stock Generic
+  deriving anyclass IsoValue
 
-deriving stock instance Show SentParam
-deriving anyclass instance IsoValue SentParam
-instance HasTypeAnn SentParam
+instance HasTypeAnn Permit
 
-unSentParam :: forall s. SentParam & s :-> (Permits, (Blake2B, Address)) & s
-unSentParam = forcedCoerce_
+toPermit :: (Blake2B, Address) & s :-> Permit & s
+toPermit = forcedCoerce_
 
-toSentParam :: forall s. (Permits, (Blake2B, Address)) & s :-> SentParam & s
-toSentParam = forcedCoerce_
+unPermit ::  Permit & s :-> (Blake2B, Address) & s
+unPermit = forcedCoerce_
 
--- | Assert the parameter exists and deletes it from `Permits`
-assertSentParam :: forall s. SentParam & s :-> Permits & s
-assertSentParam = do
-  unSentParam
-  unpair
-  dup
-  dig @2
-  dup
-  dip $ do
-    mem
-    assert $ mkMTextUnsafe "no permit"
-    none
-  update
+permitParamHash :: Permit & s :-> Blake2B & s
+permitParamHash = do
+  unPermit
+  car
 
-data CheckSentParam cp = CheckSentParam
-  { localAssertSentParam :: !(Lambda SentParam Permits)
-  , checkedParam :: !cp
-  }
-  deriving stock Generic
-
-deriving stock instance (Show cp) => Show (CheckSentParam cp)
-deriving anyclass instance (IsoValue cp) => IsoValue (CheckSentParam cp)
-
-unCheckSentParam :: forall cp s. CheckSentParam cp & s :-> (Lambda SentParam Permits, cp) & s
-unCheckSentParam = forcedCoerce_
-
-toCheckSentParam :: forall cp s. (Lambda SentParam Permits, cp) & s :-> CheckSentParam cp & s
-toCheckSentParam = forcedCoerce_
+permitSigner :: Permit & s :-> Address & s
+permitSigner = do
+  unPermit
+  cdr
 
 data Parameter cp
   = Permit !SignedParams
-  | WrappedParam !cp
+  | Wrapped !cp
   deriving stock Generic
 
 deriving stock instance (Show cp) => Show (Parameter cp)
 deriving anyclass instance (IsoValue cp) => IsoValue (Parameter cp)
 
-data Storage st = Storage
-  { presignedParams :: !Permits
-  , counter         :: !Natural
+data Storage permits st = Storage
+  { presignedParams :: !permits
+  , counter         :: !("counter" :! Natural)
   , wrappedStorage  :: !st
   }
   deriving stock Generic
 
-unStorage :: Storage st & s :-> (Permits, (Natural, st)) & s
+deriving stock instance (Show permit, Show st) => Show (Storage permit st)
+deriving anyclass instance (IsoValue permit, IsoValue st) => IsoValue (Storage permit st)
+
+instance HasFieldOfType (Storage permits st) name field =>
+         StoreHasField (Storage permits st) name field where
+  storeFieldOps = storeFieldOpsADT
+
+unStorage :: Storage permits st & s :-> (permits, ("counter" :! Natural, st)) & s
 unStorage = forcedCoerce_
 
-toStorage :: (Permits, (Natural, st)) & s :-> Storage st & s
+toStorage :: (permits, ("counter" :! Natural, st)) & s :-> Storage permits st & s
 toStorage = forcedCoerce_
 
-deriving stock instance (Show st) => Show (Storage st)
-deriving anyclass instance (IsoValue st) => IsoValue (Storage st)
+incrementCounter :: ("counter" :! Natural, st) & s :-> ("counter" :! Natural, st) & s
+incrementCounter = do
+  dup
+  car
+  forcedCoerce_ @("counter" :! Natural) @Natural
+  push @Natural 1
+  add
+  forcedCoerce_ @Natural @("counter" :! Natural)
+  dip cdr
+  pair
+
+incrementCounterStorageContains :: forall st s. StorageContains st '["counter" := ("counter" :! Natural)]
+  => st & s :-> st & s
+incrementCounterStorageContains = do
+  stGetField #counter
+  forcedCoerce_ @("counter" :! Natural) @Natural
+  push @Natural 1
+  add
+  forcedCoerce_ @Natural @("counter" :! Natural)
+  stSetField #counter
+
+mkStorage :: Monoid permits => st -> Storage permits st
+mkStorage = Storage mempty (#counter .! 0)
+
+-- | `Storage` we can parse from the Tezos RPC
+data DummyStorage st = DummyStorage
+  { dummyPresignedParams :: !Natural
+  , counter              :: !("counter" :! Natural)
+  , wrappedStorage       :: !st
+  }
+  deriving stock Generic
+
+deriving stock instance (Show st) => Show (DummyStorage st)
+deriving anyclass instance (IsoValue st) => IsoValue (DummyStorage st)
+
+fromDummyStorage :: forall permits st. Monoid permits => DummyStorage st -> Storage permits st
+fromDummyStorage DummyStorage{..} =
+  Storage mempty counter wrappedStorage
+
+-- | Parse and typecheck a Michelson value
+parseTypeCheckValue ::
+     forall t. (SingI t)
+  => Parser (Value t)
+parseTypeCheckValue =
+  (>>= either (fail . show) return) $
+  runTypeCheckIsolated . flip runReaderT def . typeCheckValue . expandValue <$>
+  (value <* eof)
+
+withAdmin42Storage :: forall permit t r. (Monoid permit, IsoValue t, SingI t) => Text -> (Storage permit t -> r) -> r
+withAdmin42Storage storageTxt f =
+  f . fromDummyStorage $ fromVal @(DummyStorage t) param
+  where
+    parsedParam = parseNoEnv
+      (parseTypeCheckValue @(ToT (DummyStorage t)))
+      "Permit DummyStorage"
+      storageTxt
+    param = either (error . fromString . show) id parsedParam
 
