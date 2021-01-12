@@ -1,0 +1,15 @@
+{
+  "name": "permit-taquito",
+  "version": "1.0.0",
+  "description": "Call Permit entrypoints with Taquito",
+  "main": "index.ts",
+  "scripts": {
+    "test": "ts-node ./index.ts | tee test.log"
+  },
+  "author": "Michael J. Klein",
+  "license": "SEE LICENSE IN ../LICENSE",
+  "dependencies": {
+    "@taquito/signer": "^7.1.0-beta.0",
+    "@taquito/taquito": "^7.1.0-beta.0"
+  }
+}
