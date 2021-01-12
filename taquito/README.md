@@ -2,6 +2,9 @@
 
 Everyting is inside of [`index.ts`](index.ts)
 
+An example on Delphi may be found
+[here](https://better-call.dev/delphinet/opg/ooXsbPsWiWxKfvUkeBQphKnjBHDUZNx8VJ6snDDqXyzreUnPA8J/contents)
+
 ## Originating the contract
 
 See the top-level directory for more detail.

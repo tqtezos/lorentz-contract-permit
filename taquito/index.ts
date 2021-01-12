@@ -2,10 +2,13 @@
 
 export {};
 
-import { TezosToolkit } from '@taquito/taquito';
+import { ContractAbstraction, ContractProvider, TezosToolkit } from '@taquito/taquito';
 import { InMemorySigner, importKey } from '@taquito/signer';
 import { Parser, emitMicheline } from '@taquito/michel-codec';
+import { ParameterSchema } from '@taquito/michelson-encoder';
+import { buf2hex, hex2buf } from '@taquito/utils';
 
+const blake = require('blakejs');
 const fs = require("fs");
 const bob_address = 'tz1bDCu64RmcpWahdn9bWrDMi6cu7mXZynHm';
 const { email, password, mnemonic, secret } =
@@ -24,7 +27,6 @@ importKey(
   mnemonic.join(' '),
   secret
 ).catch((e) => console.error(e));
-
 
 const errors_to_missigned_bytes = errors => {
   const errors_with = errors.map(x => x.with).filter(x => x !== undefined);
@@ -48,7 +50,6 @@ const errors_to_missigned_bytes = errors => {
             throw ['errors_to_missigned_bytes: expected bytes, but found:', error_with_args[1].bytes]
           } else {
             return error_with_args[1].bytes
-
           }
         }
       }
@@ -56,10 +57,30 @@ const errors_to_missigned_bytes = errors => {
   }
 }
 
+async function permitParamHash(contract: ContractAbstraction<ContractProvider>,
+                               entrypoint: string,
+                               parameter: any): Promise<string> {
+  const wrapped_param = contract.methods[entrypoint](parameter).toTransferParams().parameter.value;
+  const wrapped_param_type = contract.entrypoints.entrypoints[entrypoint];
+
+  const raw_packed = await Tezos.rpc.packData({
+    data: wrapped_param,
+    type: wrapped_param_type,
+  }).catch(e => console.error('error:', e));
+  var packed_param;
+  if (raw_packed) {
+    packed_param = raw_packed.packed
+  } else {
+    throw `packing ${wrapped_param} failed`
+  };
+
+  return buf2hex(blake.blake2b(hex2buf(packed_param), null, 32));
+}
 
 const permit_examples = async () => {
   console.log('inside: permit_examples');
 
+  // Get the contract
   const permit_address = 'KT1TDmx9JMdYqpFnD3XBrtZbN6nud1GsQnzU';
   const permit_contract = await Tezos.contract.at(permit_address);
 
@@ -67,15 +88,34 @@ const permit_examples = async () => {
   const storage = await permit_contract.storage();
   console.log('bob is admin:', storage['2'] === bob_address);
 
+  // Get the signer's public key and a dummy signature to trigger the error
   const signer_key = await Tezos.signer.publicKey().catch(e => console.error(e));
   const dummy_sig = "edsigu5scrvoY2AB7cnHzUd7x7ZvXEMYkArKeehN5ZXNkmfUSkyApHcW5vPcjbuTrnHUMt8mJkWmo8WScNgKL3vu9akFLAXvHxm";
-  const parameter_bytes = "0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c";
 
-  const bytes_to_sign = await permit_contract.methods.permit(signer_key, dummy_sig, parameter_bytes).send().catch((e) => errors_to_missigned_bytes(e.errors));
-  console.log('bytes_to_sign', bytes_to_sign);
-  const parameter_sig = await Tezos.signer.sign(bytes_to_sign).then(s => s.prefixSig);
-  console.log('permit package:', [signer_key, parameter_sig, parameter_bytes]);
-  const permit_op = await permit_contract.methods.permit(signer_key, parameter_sig, parameter_bytes).send();
+  // Get the Blake2B hash of the packed parameter
+  const param_hash = await permitParamHash(permit_contract, 'wrapped', 42);
+  console.log('permitParamHash:', param_hash);
+
+  const expected_param_hash = "0f0db0ce6f057a8835adb6a2c617fd8a136b8028fac90aab7b4766def688ea0c";
+  if(param_hash === expected_param_hash) {
+  } else {
+    throw `unexpected param_hash: {param_hash},\n
+    while {expected_param_hash} was expected`;
+  }
+
+  // Preapply a transfer with the dummy_sig to extract the bytes_to_sign
+  const transfer_params = permit_contract.methods.permit(signer_key, dummy_sig, param_hash).toTransferParams();
+  const bytes_to_sign = await Tezos.estimate.transfer(transfer_params).catch((e) => errors_to_missigned_bytes(e.errors));
+  console.log('bytes_to_sign:', bytes_to_sign);
+
+  // Sign the parameter
+  const param_sig = await Tezos.signer.sign(bytes_to_sign).then(s => s.prefixSig);
+
+  // This is what a relayer needs to submit the parameter on the signer's behalf
+  console.log('permit package:', [signer_key, param_sig, param_hash]);
+
+  // Submit the permit to the contract
+  const permit_op = await permit_contract.methods.permit(signer_key, param_sig, param_hash).send();
   await permit_op.confirmation().then(() => console.log('permit_op hash:', permit_op.hash));
 
   console.log('ending: permit_examples');
